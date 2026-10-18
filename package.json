@@ -1,0 +1,35 @@
+{
+  "name": "mo-rpg-hero",
+  "version": "0.3.1",
+  "description": "Mo RPG Hero — pixel-art RPG/MMORPG by ArkansasIo",
+  "author": "ArkansasIo",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check main.js && node --check preload.js && node --check preload-inventory.js && node --check --input-type=module < src/game.js",
+    "check:rpg": "node scripts/check-rpg-source.mjs",
+    "assets:import": "node scripts/import-visual-assets.mjs",
+    "validate:visual": "node scripts/validate-visual-assets.mjs",
+    "dist": "npx --yes electron-builder@24.13.3 --win nsis",
+    "dist:dir": "npx --yes electron-builder@24.13.3 --dir",
+    "android:assets": "npm run assets:import && npm run validate:visual && node scripts/stage-android-assets.mjs",
+    "android:apk": "npm run android:assets && npm run android:apk:debug && npm run android:apk:release",
+    "android:apk:debug": "npm run android:assets && cd android && gradle :app:assembleDebug",
+    "android:apk:release": "npm run android:assets && cd android && gradle :app:assembleRelease",
+    "sync-lockfile": "node scripts/sync-lockfile.mjs",
+    "prepare:lock": "node scripts/sync-lockfile.mjs"
+  },
+  "devDependencies": { "electron": "^31.0.0" },
+  "dependencies": { "pixi.js": "^7.4.2" },
+  "build": {
+    "appId": "io.arkansasio.taskbarhero",
+    "productName": "Mo RPG Hero",
+    "artifactName": "Mo-RPG-Hero-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "files": ["main.js","preload.js","preload-inventory.js","src/**/*","assets/**/*","package.json","node_modules/**/*"],
+    "directories": { "output": "dist" },
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "createStartMenuShortcut": true, "shortcutName": "Mo RPG Hero" }
+  }
+}

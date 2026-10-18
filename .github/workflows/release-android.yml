@@ -1,0 +1,61 @@
+name: Mo RPG Hero Android Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build Mo RPG Hero Android release package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm install
+
+      - name: Stage game assets
+        run: npm run android:assets
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Build unsigned release APK
+        working-directory: android
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Rename APK with version
+        run: cp android/app/build/outputs/apk/release/app-release-unsigned.apk Mo-RPG-Hero-Android-${GITHUB_REF_NAME#v}-unsigned.apk
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            # Mo RPG Hero ${{ github.ref_name }}
+
+            Developer: ArkansasIo
+            Android application ID: io.arkansasio.taskbarhero
+            Patch pipeline: GitHub source → CI → Android package → GitHub Release → mobile update flow
+
+            This release contains the unsigned Android APK. Android requires a release signing key for production distribution; use a properly signed production artifact for trusted public distribution.
+          files: Mo-RPG-Hero-Android-*-unsigned.apk

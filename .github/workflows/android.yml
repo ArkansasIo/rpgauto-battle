@@ -1,0 +1,176 @@
+name: Build Mo RPG Hero APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'android/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'android/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  BASE_VERSION: '0.3.1'
+
+jobs:
+  build-apk:
+    name: Compile Mo RPG Hero APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Generate build metadata
+        shell: bash
+        run: |
+          SOURCE_REVISION=$(git rev-list --count HEAD)
+          COMMIT_SHA=$(git rev-parse HEAD)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION_CODE=$((3000000 + GITHUB_RUN_NUMBER))
+          VERSION_NAME="${BASE_VERSION}-build.${GITHUB_RUN_NUMBER}"
+          PATCH="patch.${SOURCE_REVISION}.${SHORT_SHA}"
+          BUILD_ID="${VERSION_NAME}-${SHORT_SHA}"
+          PACKAGE_SUFFIX="ci${GITHUB_RUN_NUMBER}"
+          PACKAGE_ID="io.arkansasio.taskbarhero.${PACKAGE_SUFFIX}"
+          mkdir -p src
+          cat > src/build-info.json <<EOF
+          {
+            "product": "Mo RPG Hero",
+            "version": "${VERSION_NAME}",
+            "versionCode": ${VERSION_CODE},
+            "buildId": "${BUILD_ID}",
+            "buildNumber": ${GITHUB_RUN_NUMBER},
+            "patch": "${PATCH}",
+            "commit": "${COMMIT_SHA}",
+            "sourceRevision": ${SOURCE_REVISION},
+            "channel": "main-ci",
+            "applicationId": "${PACKAGE_ID}",
+            "releaseAsset": "mobile-rpg-web-latest.zip"
+          }
+          EOF
+          {
+            echo "VERSION_CODE=${VERSION_CODE}"
+            echo "VERSION_NAME=${VERSION_NAME}"
+            echo "BUILD_ID=${BUILD_ID}"
+            echo "PATCH=${PATCH}"
+            echo "SOURCE_REVISION=${SOURCE_REVISION}"
+            echo "SHORT_SHA=${SHORT_SHA}"
+            echo "PACKAGE_SUFFIX=${PACKAGE_SUFFIX}"
+            echo "PACKAGE_ID=${PACKAGE_ID}"
+          } >> "$GITHUB_ENV"
+          echo "Build: ${VERSION_NAME} (${BUILD_ID})"
+          echo "CI application ID: ${PACKAGE_ID}"
+          echo "Patch: ${PATCH}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm install
+
+      - name: Validate RPG JavaScript source
+        run: npm run check:rpg
+
+      - name: Stage web game into Android assets
+        run: npm run android:assets
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Compile debug APK
+        working-directory: android
+        run: gradle --no-daemon :app:assembleDebug -PbuildVersionCode=${VERSION_CODE} -PbuildVersionName=${VERSION_NAME} -PciPackageSuffix=${PACKAGE_SUFFIX}
+
+      - name: Compile installable CI release APK
+        working-directory: android
+        run: gradle --no-daemon :app:assembleRelease -PbuildVersionCode=${VERSION_CODE} -PbuildVersionName=${VERSION_NAME} -PciPackageSuffix=${PACKAGE_SUFFIX} -PciTestSigning=true
+
+      - name: Verify APK signatures
+        run: |
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose android/app/build/outputs/apk/debug/app-debug.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Verify full visual pack inside release APK
+        run: node scripts/verify-apk-assets.mjs android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Package current web build for in-app updater
+        run: |
+          rm -rf update-package
+          mkdir -p update-package
+          cp -R src/. update-package/
+          cd update-package
+          zip -r ../mobile-rpg-web-latest.zip . -q
+          cd ..
+          sha256sum mobile-rpg-web-latest.zip > mobile-rpg-web-latest.sha256
+
+      - name: Rename APKs with build metadata
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/debug/app-debug.apk "release/Mo-RPG-Hero-Android-${VERSION_NAME}-debug.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk "release/Mo-RPG-Hero-Android-${VERSION_NAME}-ci-install.apk"
+          sha256sum release/*.apk > release/SHA256SUMS.txt
+          cp mobile-rpg-web-latest.zip release/mobile-rpg-web-latest.zip
+          cp mobile-rpg-web-latest.sha256 release/mobile-rpg-web-latest.sha256
+          cp src/build-info.json release/build-info.json
+          printf 'Mo RPG Hero\nVersion: %s\nBuild ID: %s\nPatch: %s\nSource revision: %s\nCommit: %s\nApplication ID: %s\nSigning: CI release APK uses the runner debug key and a unique CI package ID; production updates require a persistent release keystore.\n' "$VERSION_NAME" "$BUILD_ID" "$PATCH" "$SOURCE_REVISION" "$GITHUB_SHA" "$PACKAGE_ID" > release/BUILD_INFO.txt
+
+      - name: Upload installable CI release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mo-rpg-hero-android-ci-release-${{ env.VERSION_NAME }}
+          path: release/Mo-RPG-Hero-Android-${{ env.VERSION_NAME }}-ci-install.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mo-rpg-hero-android-debug-${{ env.VERSION_NAME }}
+          path: release/Mo-RPG-Hero-Android-${{ env.VERSION_NAME }}-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload release and update packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: mo-rpg-hero-build-${{ env.VERSION_NAME }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish rolling mobile-latest update package
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view mobile-latest >/dev/null 2>&1 || gh release create mobile-latest --target "$GITHUB_SHA" --title "Mo RPG Hero Mobile Latest" --notes "Rolling mobile content update for build ${VERSION_NAME} (${BUILD_ID})." --prerelease
+          gh release upload mobile-latest release/mobile-rpg-web-latest.zip release/mobile-rpg-web-latest.sha256 release/build-info.json release/BUILD_INFO.txt --clobber
