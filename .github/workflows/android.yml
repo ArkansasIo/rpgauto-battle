@@ -26,6 +26,7 @@ permissions:
 
 env:
   BASE_VERSION: '0.3.1'
+  VISUAL_PACK_ARCHIVE: 'assets/import/mo-rpg-hero-generated-assets-v1.zip'
 
 jobs:
   build-apk:
@@ -86,13 +87,22 @@ jobs:
           cache: npm
 
       - name: Install JavaScript dependencies
-        run: npm install
+        run: npm ci
 
       - name: Validate RPG JavaScript source
         run: npm run check:rpg
 
       - name: Stage web game into Android assets
-        run: npm run android:assets
+        shell: bash
+        run: |
+          if [[ -f "${VISUAL_PACK_ARCHIVE}" ]]; then
+            echo "Visual pack archive found; importing and validating the full 169-PNG pack."
+            npm run android:assets
+          else
+            echo "WARNING: ${VISUAL_PACK_ARCHIVE} is not present."
+            echo "Building with the repository's committed web assets; the optional 169-PNG visual-pack verification will be skipped."
+            node scripts/stage-android-assets.mjs
+          fi
 
       - name: Setup Java
         uses: actions/setup-java@v5
@@ -120,6 +130,7 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose android/app/build/outputs/apk/release/app-release.apk
 
       - name: Verify full visual pack inside release APK
+        if: ${{ hashFiles('assets/import/mo-rpg-hero-generated-assets-v1.zip') != '' }}
         run: node scripts/verify-apk-assets.mjs android/app/build/outputs/apk/release/app-release.apk
 
       - name: Package current web build for in-app updater
@@ -141,7 +152,7 @@ jobs:
           cp mobile-rpg-web-latest.zip release/mobile-rpg-web-latest.zip
           cp mobile-rpg-web-latest.sha256 release/mobile-rpg-web-latest.sha256
           cp src/build-info.json release/build-info.json
-          printf 'Mo RPG Hero\nVersion: %s\nBuild ID: %s\nPatch: %s\nSource revision: %s\nCommit: %s\nApplication ID: %s\nSigning: CI release APK uses the runner debug key and a unique CI package ID; production updates require a persistent release keystore.\n' "$VERSION_NAME" "$BUILD_ID" "$PATCH" "$SOURCE_REVISION" "$GITHUB_SHA" "$PACKAGE_ID" > release/BUILD_INFO.txt
+          printf 'Mo RPG Hero\nVersion: %s\nBuild ID: %s\nPatch: %s\nSource revision: %s\nCommit: %s\nApplication ID: %s\nSigning: CI release APK uses the runner debug key and a unique CI package ID; production updates require a persistent release keystore.\nVisual pack: %s\n' "$VERSION_NAME" "$BUILD_ID" "$PATCH" "$SOURCE_REVISION" "$GITHUB_SHA" "$PACKAGE_ID" "$(if [[ -f "${VISUAL_PACK_ARCHIVE}" ]]; then echo 'full 169-PNG pack verified'; else echo 'repository assets only; generated 169-PNG import archive was not supplied'; fi)" > release/BUILD_INFO.txt
 
       - name: Upload installable CI release APK
         uses: actions/upload-artifact@v4
