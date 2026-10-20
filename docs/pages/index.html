@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Mo RPG Hero — browser auto-battle RPG demo.">
+  <title>Mo RPG Hero — Auto Battle</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./game.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Mo RPG Hero home"><span class="brand-mark">⚔</span><span>MO RPG <small>HERO</small></span></a>
+    <div class="top-meta"><span class="live-dot"></span> AUTO-BATTLE PROTOTYPE <span class="version">WEB DEMO 0.1</span></div>
+  </header>
+  <main class="shell">
+    <section class="hero-header">
+      <div><p class="eyebrow">ADVENTURER'S GUILD / FIELD REPORT</p><h1>Thornwatch <em>Frontier</em></h1><p class="subhead">Your party fights automatically. Tune your formation, claim loot, and push into the next wave.</p></div>
+      <div class="level-card"><span>PARTY LEVEL</span><strong id="party-level">1</strong><small id="party-xp">0 / 100 XP</small></div>
+    </section>
+    <nav class="tabs" aria-label="Game sections">
+      <button class="tab active" data-panel="battle">Battle</button>
+      <button class="tab" data-panel="heroes">Heroes <span id="hero-count">3</span></button>
+      <button class="tab" data-panel="loot">Loot <span id="loot-count">0</span></button>
+      <button class="tab" data-panel="codex">Codex</button>
+    </nav>
+    <section id="battle-panel" class="panel">
+      <div class="battle-grid">
+        <section class="arena card">
+          <div class="arena-head"><div><p class="eyebrow">ACTIVE ENCOUNTER</p><h2 id="encounter-title">Forest Skirmish</h2></div><span class="wave-tag" id="wave-tag">WAVE 1</span></div>
+          <div class="landscape">
+            <div class="moon"></div><div class="mountain mountain-back"></div><div class="mountain mountain-front"></div>
+            <div class="arena-label left-label">YOUR PARTY</div><div class="arena-label right-label">ENEMIES</div>
+            <div id="battlefield" class="battlefield"></div>
+            <div class="ground"></div>
+            <div class="combat-banner" id="combat-banner" aria-live="polite">Your party enters the frontier.</div>
+          </div>
+          <div class="battle-controls">
+            <button id="toggle-battle" class="button primary">Ⅱ Pause</button>
+            <button id="next-wave" class="button">Next Wave ↗</button>
+            <label class="speed-control">Combat speed <select id="speed"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option></select></label>
+            <span class="autosave" id="save-status">LOCAL SAVE ON</span>
+          </div>
+          <div class="combat-log" id="combat-log" aria-label="Combat log"></div>
+        </section>
+        <aside class="side-stack">
+          <section class="card objective-card"><p class="eyebrow">FIELD OBJECTIVE</p><h3 id="objective-title">Clear the wave</h3><div class="objective-row"><span>Enemies defeated</span><strong id="kill-count">0</strong></div><div class="objective-row"><span>Gold earned</span><strong id="gold-count">0</strong></div><div class="objective-row"><span>Victory streak</span><strong id="streak-count">0</strong></div></section>
+          <section class="card party-card"><div class="section-heading"><div><p class="eyebrow">FORMATION</p><h3>Battle party</h3></div><button class="text-button" data-jump="heroes">Manage</button></div><div id="party-summary" class="party-summary"></div></section>
+          <section class="card reward-card"><p class="eyebrow">LAST REWARD</p><div class="reward-icon">✦</div><div><strong id="reward-title">No reward yet</strong><p id="reward-description">Defeat enemies to earn XP and drops.</p></div></section>
+        </aside>
+      </div>
+    </section>
+    <section id="heroes-panel" class="panel" hidden>
+      <div class="section-heading page-heading"><div><p class="eyebrow">ROSTER & FORMATION</p><h2>Heroes of the Frontier</h2><p class="subhead">Level up together and recruit a specialist for your party.</p></div><div class="currency"><span>◈</span> <strong id="hero-gold">120</strong> gold</div></div>
+      <div class="hero-roster" id="hero-roster"></div>
+      <section class="card recruit-card"><div><p class="eyebrow">RECRUITMENT BOARD</p><h3>Grow your party</h3><p class="muted">A larger party costs gold and brings new combat roles into the rotation.</p></div><div id="recruit-list" class="recruit-list"></div></section>
+    </section>
+    <section id="loot-panel" class="panel" hidden>
+      <div class="section-heading page-heading"><div><p class="eyebrow">REWARDS & EQUIPMENT</p><h2>Loot stash</h2><p class="subhead">Gear upgrades are automatically equipped when they improve a hero's power.</p></div><span class="wave-tag" id="stash-count">0 ITEMS</span></div>
+      <div class="loot-grid" id="loot-grid"></div>
+    </section>
+    <section id="codex-panel" class="panel" hidden>
+      <div class="page-heading"><p class="eyebrow">FIELD MANUAL / V 0.1</p><h2>Frontier codex</h2><p class="subhead">A browser prototype of the RPG data model. The standalone demo keeps its own state and is intentionally separate from desktop and Android save files.</p></div>
+      <div class="codex-grid">
+        <article class="card"><span class="codex-icon">🛡</span><h3>Classes & roles</h3><p><b>Guardian</b> soaks damage. <b>Ranger</b> deals reliable ranged damage. <b>Cleric</b> heals wounded allies. <b>Mage</b> strikes all enemies.</p></article>
+        <article class="card"><span class="codex-icon">🌲</span><h3>World zones</h3><p>Thornwatch Frontier (1–10), Goldenroad (8–18), Dunesea (18–30), Frostmarch (28–42), Blackfen (38–52), Emberfall (48–62), Tempest Isles (58–72), Aether Crown (68–82), Voidscar (80–100).</p></article>
+        <article class="card"><span class="codex-icon">⚔</span><h3>Combat pipeline</h3><p>Auto-target → role ability → damage mitigation → defeat/reward → wave spawn. The same steps are reflected in the visible combat log.</p></article>
+        <article class="card"><span class="codex-icon">✦</span><h3>Loot rarities</h3><p><span class="rarity common">Common</span> <span class="rarity rare">Rare</span> <span class="rarity epic">Epic</span> <span class="rarity legendary">Legendary</span>. This prototype uses a compact item pool.</p></article>
+      </div>
+    </section>
+    <footer><span>MO RPG HERO / AUTOBATTLE</span><span>Progress saves in this browser · Demo build</span><a href="https://github.com/ArkansasIo/rpgauto-battle">SOURCE REPOSITORY ↗</a></footer>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
