@@ -20,6 +20,14 @@
   let state;
   try { const parsed=JSON.parse(localStorage.getItem(SAVE_KEY)||'null'); state=parsed&&Array.isArray(parsed.party)&&Number.isFinite(parsed.wave)?{...fresh(),...parsed}:fresh(); }
   catch { state=fresh(); }
+  state.party=state.party.filter(id=>classes.some(c=>c.id===id)).slice(0,5);
+  if(!state.party.length) state.party=['guardian','ranger','cleric'];
+  state.wave=safeInt(state.wave,1,10000);
+  state.gold=safeInt(state.gold,0,999999999);
+  state.level=safeInt(state.level,1,1000);
+  state.xp=safeInt(state.xp,0,999999999);
+  state.kills=safeInt(state.kills,0,999999999);
+  state.streak=safeInt(state.streak,0,999999999);
   let enemies=[], lastTick=0, tickAccumulator=0, toastTimer=null, nextEnemyId=1, displayedDamage=new Map();
   let logLines=[];
   const $=id=>document.getElementById(id);
