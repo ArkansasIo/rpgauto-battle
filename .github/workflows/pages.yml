@@ -1,4 +1,4 @@
-name: Deploy GitHub Pages
+name: Build static browser demo
 
 on:
   push:
@@ -19,14 +19,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: pages-build
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -36,22 +34,15 @@ jobs:
           test -f docs/pages/style.css
           test -f docs/pages/game.js
           node --check docs/pages/game.js
+      - name: Package static site
+        run: |
+          mkdir -p site
+          cp -R docs/pages/. site/
+          touch site/.nojekyll
+          cat > site/404.html <<'EOF'
+          <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Page not found — Mo RPG Hero</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#090e17;color:#e8edf6;font:16px system-ui;text-align:center}a{color:#dfb765}</style><main><h1>404 — Trail Lost</h1><p>This path isn't on the map.</p><p><a href="./">Return to Mo RPG Hero</a></p></main></html>
+          EOF
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: docs/pages
-
-  deploy:
-    if: github.event_name != 'pull_request'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          path: site
