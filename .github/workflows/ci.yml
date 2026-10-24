@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   validate:
-    name: Validate source
+    name: Validate source and RPG systems
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,6 +28,8 @@ jobs:
         run: npm run check
       - name: Check RPG source
         run: npm run check:rpg
+      - name: Run RPG unit tests
+        run: npm test
       - name: Check renderer module syntax
         run: |
           node --check --input-type=module < src/game.js
@@ -53,6 +55,7 @@ jobs:
           test -f README.md
           test -f docs/RPG_EXPANSION_DESIGN.md
           test -f docs/RPG_TEST_MATRIX.md
+          test -f tests/rpg-systems.test.mjs
 
   windows-installer:
     name: Package Windows installer
